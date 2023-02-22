@@ -34,6 +34,8 @@
            #:bot-running
            #:bot-heartbeat-ack
            #:bot-heartbeat-thread
+           #:bot-ready-p
+           #:bot-watchdog-thread
            #:bot-auth-as-bot
 
            #:bot-auth

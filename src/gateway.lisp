@@ -58,6 +58,21 @@
                     (v:debug :lispcord.gateway "Terminating a stale heartbeat thread"))
                   :name "Heartbeat"))
 
+;;;; Ready watchdog thread
+
+(defconstant +ready-deadline+ 20)
+(defun make-watchdog-thread (bot)
+  (bt:make-thread
+   (lambda ()
+     (block thread
+       (sleep +ready-deadline+)
+       (when (and (eq (bot-watchdog-thread bot) (bt:current-thread))
+                  (not (null (bot-conn bot)))
+                  (not (bot-ready-p bot)))
+         (v:warn :lispcord.gateway "Discord didn't send READY message. Reconnecting.")
+         (event-emitter:emit :no-heartbeat (bot-conn bot)))))
+   :name "Watchdog"))
+
 ;;;; Sending 
 
 (defun send-payload (bot &key op data)
@@ -93,6 +108,8 @@
 (defun send-resume (bot)
   (v:info :lispcord.gateway "Resuming connection for session ~a..."
           (bot-session-id bot))
+  (setf (bot-ready-p bot) nil
+        (bot-watchdog-thread bot) (make-watchdog-thread bot))
   (send-payload bot
                 :op 6
                 :data `(("token" . ,(bot-auth bot))
@@ -119,6 +136,7 @@
           (gethash "session_id" payload))
   (setf (bot-session-id bot) (gethash "session_id" payload))
   (setf (bot-user bot) (cache :user (gethash "user" payload)))
+  (setf (bot-ready-p bot) t)
   ;;dispatch event
   (dispatch-event :on-ready (list (from-json :ready payload)) bot))
 
@@ -413,6 +431,9 @@
     (v:debug :lispcord.gateway "Heartbeat Inverval: ~a" heartbeat-interval)
     (setf (bot-heartbeat-thread bot)
           (make-heartbeat-thread bot (/ heartbeat-interval 1000.0)))
+    (setf (bot-ready-p bot) nil)
+    (setf (bot-watchdog-thread bot)
+          (make-watchdog-thread bot))
     (if (bot-session-id bot)
         (send-resume bot)
         (send-identify bot))))

@@ -15,7 +15,9 @@ It may be set by make-bot!")
   conn
   (running nil :type boolean)
   (heartbeat-ack t :type boolean)
-  heartbeat-thread)
+  heartbeat-thread
+  (ready-p nil :type boolean)
+  watchdog-thread)
 
 
 (defparameter *bot-url* "N/A")
