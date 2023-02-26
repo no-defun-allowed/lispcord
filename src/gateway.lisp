@@ -108,8 +108,6 @@
 (defun send-resume (bot)
   (v:info :lispcord.gateway "Resuming connection for session ~a..."
           (bot-session-id bot))
-  (setf (bot-ready-p bot) nil
-        (bot-watchdog-thread bot) (make-watchdog-thread bot))
   (send-payload bot
                 :op 6
                 :data `(("token" . ,(bot-auth bot))
@@ -140,6 +138,8 @@
   ;;dispatch event
   (dispatch-event :on-ready (list (from-json :ready payload)) bot))
 
+(defun on-resumed (bot)
+  (setf (bot-ready-p bot) t))
 
 (defun on-emoji-update (data bot)
   (with-table (data emojis "emojis"
@@ -290,6 +290,7 @@
 
       ;; on resume
       ("RESUMED"
+       (on-resumed bot)
        (dispatch-event :on-status-resumed nil bot))
 
       ;; someone starts typing
@@ -431,9 +432,6 @@
     (v:debug :lispcord.gateway "Heartbeat Inverval: ~a" heartbeat-interval)
     (setf (bot-heartbeat-thread bot)
           (make-heartbeat-thread bot (/ heartbeat-interval 1000.0)))
-    (setf (bot-ready-p bot) nil)
-    (setf (bot-watchdog-thread bot)
-          (make-watchdog-thread bot))
     (if (bot-session-id bot)
         (send-resume bot)
         (send-identify bot))))
@@ -505,8 +503,10 @@
   (assert (typep bot 'bot))
   (unless *gateway-url* (refresh-gateway-url))
   (let ((conn (wsd:make-client *gateway-url*)))
-    (setf (bot-conn bot) conn)
-    (setf (bot-running bot) t)
+    (setf (bot-conn bot) conn
+          (bot-running bot) t
+          (bot-ready-p bot) nil
+          (bot-watchdog-thread bot) (make-watchdog-thread bot))
     (with-network-retry (:refresh-gateway t)
       (wsd:start-connection conn))
     
