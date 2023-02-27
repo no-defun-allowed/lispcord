@@ -70,7 +70,8 @@
                   (not (null (bot-conn bot)))
                   (not (bot-ready-p bot)))
          (v:warn :lispcord.gateway "Discord didn't send READY message. Reconnecting.")
-         (event-emitter:emit :no-heartbeat (bot-conn bot)))))
+         (refresh-gateway-url)
+         (reconnect-full bot))))
    :name "Watchdog"))
 
 ;;;; Sending 
